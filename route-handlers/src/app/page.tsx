@@ -1,9 +1,13 @@
+import AddTodo from "./components/AddTodo";
+import TodoList from "./components/TodoList";
+
+export const revalidate = 0;
+
 export default function Home() {
   return (
-    <main>
-      <h1 className="text-3xl grid place-content-center min-h-screen">
-        Hello World!
-      </h1>
-    </main>
+    <>
+      <AddTodo />
+      <TodoList />
+    </>
   );
 }
