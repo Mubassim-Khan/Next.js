@@ -1,49 +1,83 @@
-import fs from "fs";
-import path from "path";
-import matter from "gray-matter";
-import html from "remark-html";
-import { remark } from "remark";
+import { compileMDX } from "next-mdx-remote/rsc";
 
-const postsDirectory = path.join(process.cwd(), "blogposts");
+type Filetree = {
+  tree: [
+    {
+      path: string;
+    }
+  ];
+};
 
-export function getSortedPostsData() {
-  const fileNames = fs.readdirSync(postsDirectory);
-  const allPostsData = fileNames.map((fileName) => {
-    const id = fileName.replace(/\.md$/, "");
+export async function getPostByName(
+  fileName: string
+): Promise<BlogPost | undefined> {
+  const res = await fetch(
+    `https://raw.githubusercontent.com/Mubassim-Khan/Blogs-MD/master/${fileName}`,
+    {
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+    }
+  );
 
-    const fullPath = path.join(postsDirectory, fileName);
-    const fileContents = fs.readFileSync(fullPath, "utf-8");
+  if (!res.ok) return undefined;
 
-    const matterResult = matter(fileContents);
+  const rawMDX = await res.text();
 
-    const blogPost: BlogPost = {
-      id,
-      title: matterResult.data.title,
-      date: matterResult.data.date,
-    };
-    return blogPost;
+  if (rawMDX === "404: Not Found") return undefined;
+
+  const { frontmatter, content } = await compileMDX<{
+    title: string;
+    date: string;
+    tags: string[];
+  }>({
+    source: rawMDX,
   });
 
-  return allPostsData.sort((a, b) => (a.date < b.date ? 1 : -1));
+  const id = fileName.replace(/\.mdx$/, "");
+
+  const blogPostObj: BlogPost = {
+    meta: {
+      id,
+      title: frontmatter.title,
+      date: frontmatter.date,
+      tags: frontmatter.tags,
+    },
+    content,
+  };
+  return blogPostObj;
 }
 
-export async function getPostData(id: string) {
-  const fullPath = path.join(postsDirectory, `${id}.md`);
-  const fileContents = fs.readFileSync(fullPath, "utf-8");
+export async function getMetaData(): Promise<Meta[] | undefined> {
+  const res = await fetch(
+    "https://api.github.com/repos/Mubassim-Khan/Blogs-MD/git/trees/master?recursive=1",
+    {
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+    }
+  );
 
-  const matterResult = matter(fileContents);
+  if (!res.ok) return undefined;
 
-  const processedContent = await remark()
-    .use(html)
-    .process(matterResult.content);
+  const repoFileTree: Filetree = await res.json();
+  const filesArray = repoFileTree.tree
+    .map((obj) => obj.path)
+    .filter((path) => path.endsWith(".mdx"));
 
-  const contentHTML = processedContent.toString();
+  const posts: Meta[] = [];
 
-  const blogPostWithHTML: BlogPost & { contentHTML: string } = {
-    id,
-    title: matterResult.data.title,
-    date: matterResult.data.date,
-    contentHTML,
-  };
-  return blogPostWithHTML;
+  for (const file of filesArray) {
+    const post = await getPostByName(file);
+    if (post) {
+      const { meta } = post;
+      posts.push(meta);
+    }
+  }
+
+  return posts.sort((a, b) => (a.date < b.date ? 1 : -1));
 }
