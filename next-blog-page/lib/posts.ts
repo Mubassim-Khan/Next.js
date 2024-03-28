@@ -34,6 +34,9 @@ export async function getPostByName(
     tags: string[];
   }>({
     source: rawMDX,
+    options: {
+      parseFrontmatter: true,
+    },
   });
 
   const id = fileName.replace(/\.mdx$/, "");
@@ -50,7 +53,7 @@ export async function getPostByName(
   return blogPostObj;
 }
 
-export async function getMetaData(): Promise<Meta[] | undefined> {
+export async function getPostsMeta(): Promise<Meta[] | undefined> {
   const res = await fetch(
     "https://api.github.com/repos/Mubassim-Khan/Blogs-MD/git/trees/master?recursive=1",
     {
