@@ -2,8 +2,9 @@ import getFormatedDate from "@/lib/getFormatedDate";
 import { getPostByName, getPostsMeta } from "@/lib/posts";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import 'highlight.js/styles/github-dark.css'
 
-export const revalidate = 0;
+export const revalidate = 10;
 
 type Props = {
   params: {
@@ -11,15 +12,15 @@ type Props = {
   };
 };
 
-// export async function generateStaticParams() {
-//   const posts = await getPostsMeta();     // De-duplicated
+export async function generateStaticParams() {
+  const posts = await getPostsMeta();     // De-duplicated
 
-//   if(!posts) return []
+  if(!posts) return []
 
-//   return posts.map((post) => ({
-//     postId: post.id,
-//   }));
-// }
+  return posts.map((post) => ({
+    postId: post.id,
+  }));
+}
 
 export async function generateMetadata({ params: { postId } }: Props) {
   const post = await getPostByName(`${postId}.mdx`); //De-duplicated
@@ -60,7 +61,7 @@ export default async function Post({ params: { postId } }: Props) {
         <div className="flex flex-row gap-4">{tags}</div>
       </section>
       <p className="mb-10">
-        <Link href="/">← Back to home</Link>
+        <Link href="/">← Back to Home</Link>
       </p>
     </>
   );
